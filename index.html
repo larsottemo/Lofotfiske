@@ -23,22 +23,11 @@
       background: radial-gradient(900px 500px at 10% -20%, #1c3c49 0%, var(--bg) 50%);
       color: var(--ink);
     }
-<body>
-  <div id="gate" style="position:fixed;inset:0;background:#0e1a20;display:grid;place-items:center;z-index:50">
-    <form id="gateForm" style="background:#16303a;border:1px solid #2a4a57;border-radius:16px;padding:24px;width:min(360px,90vw)">
-      <p style="margin:0 0 12px">Fiskevennenes fiskekalkulator</p>
-      <label>Kodeord</label>
-      <input id="gatePass" type="password" autocomplete="current-password" style="width:100%;margin:6px 0 12px;padding:8px 10px;border-radius:8px;border:1px solid #2a4a57;background:#10242c;color:#eaf3f6">
-      <button type="submit">Åpne</button>
-      <p id="gateErr" style="color:#e0746a;min-height:1.2em"></p>
-    </form>
-  </div>
-  <main>
     main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 80px; }
-    h1 { margin: 0 0 4px; font-size: 2rem; }
+    h1 { margin: 0 0 2px; font-size: 1.55rem; line-height: 1.2; }
     h2 { margin: 0 0 8px; font-size: 1.1rem; }
     .lead, .hint { color: var(--muted); }
-        .brand { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+    .brand { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
     img.logo {
       width: 72px; height: 72px; flex: 0 0 72px;
       border-radius: 50%;
@@ -46,7 +35,6 @@
       background: transparent;
     }
     .brand .place { margin: 0; font-size: 0.95rem; }
-    h1 { margin: 0 0 2px; font-size: 1.55rem; line-height: 1.2; }
     .toolbar, .panel, .slot, .missing, .bors {
       background: var(--card);
       border: 1px solid var(--line);
@@ -111,11 +99,34 @@
     .status { min-height: 1.2em; color: var(--muted); font-size: 0.9rem; }
     .bors a { color: var(--accent); }
     .bors ul { margin: 8px 0 0; padding-left: 18px; }
+    #gate {
+      position: fixed; inset: 0; z-index: 50;
+      background: #0e1a20;
+      display: grid; place-items: center;
+    }
+    #gate form {
+      background: #16303a;
+      border: 1px solid #2a4a57;
+      border-radius: 16px;
+      padding: 24px;
+      width: min(360px, 90vw);
+    }
+    .gate-title { margin: 0 0 12px; }
+    #gateErr { color: #e0746a; min-height: 1.2em; }
   </style>
 </head>
 <body>
+  <div id="gate">
+    <form id="gateForm">
+      <p class="gate-title">Fiskevennenes fiskekalkulator</p>
+      <label for="gatePass">Kodeord</label>
+      <input id="gatePass" type="password" autocomplete="current-password">
+      <button type="submit">Åpne</button>
+      <p id="gateErr"></p>
+    </form>
+  </div>
   <main>
-        <div class="brand">
+    <div class="brand">
       <img class="logo" src="logo.png" width="72" height="72" alt="Svolværvannets Fiskevenner">
       <div>
         <h1>Fiskevennenes fiskekalkulator</h1>
@@ -150,21 +161,24 @@
   </main>
 
   <script>
-        const PAGE_PASS = "Fiskefusk";
-    const gate = document.getElementById("gate");
+    const PAGE_PASS = "Fiskefusk";
+    const gateEl = document.getElementById("gate");
+    const gateForm = document.getElementById("gateForm");
     if (sessionStorage.getItem("fv_ok") === "1") {
-      gate.remove();
-    } else {
-      document.getElementById("gateForm").onsubmit = (e) => {
+      gateEl?.remove();
+    } else if (gateForm) {
+      gateForm.addEventListener("submit", (e) => {
         e.preventDefault();
-        if (document.getElementById("gatePass").value === PAGE_PASS) {
+        const val = document.getElementById("gatePass").value;
+        if (val === PAGE_PASS) {
           sessionStorage.setItem("fv_ok", "1");
-          gate.remove();
+          gateEl.remove();
         } else {
           document.getElementById("gateErr").textContent = "Feil kodeord";
         }
-      };
+      });
     }
+
     const DEFAULT_API = "https://fangstscore.lars-ottemo.workers.dev/score";
     const $ = (id) => document.getElementById(id);
     let payload = null;
