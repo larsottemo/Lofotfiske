@@ -23,6 +23,15 @@
       background: radial-gradient(900px 500px at 10% -20%, #1c3c49 0%, var(--bg) 50%);
       color: var(--ink);
     }
+      <div id="gate" style="position:fixed;inset:0;background:#0e1a20;display:grid;place-items:center;z-index:50">
+    <form id="gateForm" style="background:#16303a;border:1px solid #2a4a57;border-radius:16px;padding:24px;width:min(360px,90vw)">
+      <p style="margin:0 0 12px">Fiskevennenes fiskekalkulator</p>
+      <label>Kodeord</label>
+      <input id="gatePass" type="password" autocomplete="current-password" style="width:100%;margin:6px 0 12px;padding:8px 10px;border-radius:8px;border:1px solid #2a4a57;background:#10242c;color:#eaf3f6">
+      <button type="submit">Åpne</button>
+      <p id="gateErr" style="color:#e0746a;min-height:1.2em"></p>
+    </form>
+  </div>
     main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 80px; }
     h1 { margin: 0 0 4px; font-size: 2rem; }
     h2 { margin: 0 0 8px; font-size: 1.1rem; }
@@ -139,6 +148,21 @@
   </main>
 
   <script>
+        const PAGE_PASS = "Fiskefusk";
+    const gate = document.getElementById("gate");
+    if (sessionStorage.getItem("fv_ok") === "1") {
+      gate.remove();
+    } else {
+      document.getElementById("gateForm").onsubmit = (e) => {
+        e.preventDefault();
+        if (document.getElementById("gatePass").value === PAGE_PASS) {
+          sessionStorage.setItem("fv_ok", "1");
+          gate.remove();
+        } else {
+          document.getElementById("gateErr").textContent = "Feil kodeord";
+        }
+      };
+    }
     const DEFAULT_API = "https://fangstscore.lars-ottemo.workers.dev/score";
     const $ = (id) => document.getElementById(id);
     let payload = null;
