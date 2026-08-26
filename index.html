@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fangstscore · Svolvær</title>
+  <style>
+    :root {
+      --bg: #0e1a20;
+      --card: #16303a;
+      --ink: #eaf3f6;
+      --muted: #9bb3bd;
+      --line: #2a4a57;
+      --accent: #3dbe9a;
+      --rod: #e0746a;
+      --blaa: #6cb4e0;
+      --warn: #d4a017;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Georgia, "Iowan Old Style", serif;
+      background: radial-gradient(900px 500px at 10% -20%, #1c3c49 0%, var(--bg) 50%);
+      color: var(--ink);
+    }
+    main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 80px; }
+    h1 { margin: 0 0 4px; font-size: 2rem; }
+    h2 { margin: 0 0 8px; font-size: 1.1rem; }
+    .lead, .hint { color: var(--muted); }
+    .toolbar, .panel, .slot, .missing, .bors {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin: 12px 0;
+    }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+    input, select {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #10242c;
+      color: var(--ink);
+      font: inherit;
+      width: 100%;
+    }
+    button, .btn {
+      background: var(--accent);
+      color: #062018;
+      border: 0;
+      padding: 9px 16px;
+      border-radius: 999px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    button.ghost, .btn.ghost {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+    .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+    .total { font-size: 2.4rem; font-weight: 700; line-height: 1; margin: 4px 0; }
+    .pill {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--accent);
+      font-size: 0.8rem;
+      margin: 2px 2px 0 0;
+    }
+    .pill.rod { border-color: var(--rod); color: var(--rod); }
+    .pill.blaa { border-color: var(--blaa); color: var(--blaa); }
+    .pill.warn { border-color: var(--warn); color: #f0d38a; }
+    .bar-row { display: grid; grid-template-columns: 1fr 36px; gap: 4px; font-size: 0.8rem; margin-top: 6px; }
+    .track { height: 6px; background: #10242c; border-radius: 99px; overflow: hidden; grid-column: 1 / -1; }
+    .fill { height: 100%; background: var(--accent); }
+    .grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+    .warnbox {
+      background: #3b2e12;
+      border: 1px solid #8a6d1f;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin: 8px 0;
+    }
+    details { margin-top: 8px; color: var(--muted); }
+    details summary { cursor: pointer; }
+    .status { min-height: 1.2em; color: var(--muted); font-size: 0.9rem; }
+    .bors a { color: var(--accent); }
+    .bors ul { margin: 8px 0 0; padding-left: 18px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Fangstscore · Svolvær</h1>
+    <p class="lead">Vågan. Observasjoner fra SN85450 og nedbør fra SN85470, pluss Met.no-varsel.</p>
+
+    <div class="toolbar">
+      <button id="go" type="button">Hent og beregn</button>
+      <a class="btn ghost" href="https://www.skittfiske.no/guider/fiske/huggtabellen" target="_blank" rel="noopener">Se huggtabell</a>
+      <p class="status" id="status"></p>
+    </div>
+
+    <div id="bors"></div>
+    <div id="warnings"></div>
+    <div class="slots" id="slots"></div>
+
+    <section class="missing">
+      <h2>Manglende eller manuelle tall</h2>
+      <p class="hint">Hvis Frost ikke leverer et felt, fyller du det her og trykker «Beregn på nytt».</p>
+      <div class="grid2" id="missingFields"></div>
+      <p>
+        <button id="recalc" type="button">Beregn på nytt med mine tall</button>
+        <button id="clear" class="ghost" type="button">Tøm mine tall</button>
+      </p>
+      <details>
+        <summary>Avansert: worker-adresse</summary>
+        <label style="margin-top:8px">Worker-URL</label>
+        <input id="api" value="https://fangstscore.lars-ottemo.workers.dev/score">
+      </details>
+    </section>
+  </main>
+
+  <script>
+    const DEFAULT_API = "https://fangstscore.lars-ottemo.workers.dev/score";
+    const $ = (id) => document.getElementById(id);
+    let payload = null;
+    let overrides = {};
+    let huggBySlot = JSON.parse(localStorage.getItem("fangstscoreHugg") || "{}");
+
+    $("api").value = localStorage.getItem("fangstscoreApi") || DEFAULT_API;
+    $("go").onclick = load;
+    $("recalc").onclick = load;
+    $("clear").onclick = () => { overrides = {}; load(); };
+    $("api").onchange = () => localStorage.setItem("fangstscoreApi", $("api").value.trim());
+
+    function collectOverrides() {
+      document.querySelectorAll("[data-ov]").forEach((el) => {
+        const [day, key] = el.dataset.ov.split("|");
+        if (!overrides[day]) overrides[day] = {};
+        overrides[day][key] = el.value === "" ? null : Number(el.value);
+      });
+    }
+
+    async function load() {
+      collectOverrides();
+      const api = $("api").value.trim() || DEFAULT_API;
+      $("status").textContent = "Henter …";
+      try {
+        const res = await fetch(api, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ huggBySlot, overrides }),
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        payload = await res.json();
+        $("status").textContent = "Oppdatert " + new Date().toLocaleTimeString("nb-NO");
+        draw(payload);
+      } catch (e) {
+        $("status").textContent = "";
+        $("warnings").innerHTML =
+          `<div class="warnbox">Worker svarte ikke (${e.message}). Oppdater workeren og prøv igjen.</div>`;
+      }
+    }
+
+    function draw(p) {
+      $("warnings").innerHTML = (p.warnings || [])
+        .map((w) => `<div class="warnbox">${escapeHtml(w)}</div>`).join("");
+      $("bors").innerHTML = borsBox(p.laksebors);
+      $("slots").innerHTML = (p.slots || []).map(card).join("");
+      $("slots").querySelectorAll("[data-hugg]").forEach((sel) => {
+        sel.onchange = () => {
+          huggBySlot[sel.dataset.hugg] = sel.value;
+          localStorage.setItem("fangstscoreHugg", JSON.stringify(huggBySlot));
+          load();
+        };
+      });
+      const days = neededDays(p);
+      $("missingFields").innerHTML = days.map(dayEditor).join("");
+      fillKnown(p.daily);
+    }
+
+    function borsBox(b) {
+      if (!b) {
+        return `<section class="bors"><strong>Laksebørsen</strong><p class="hint">Ingen data akkurat nå. <a href="https://laksebors.inatur.no/bors/1032" target="_blank" rel="noopener">Åpne Svolværvannet</a></p></section>`;
+      }
+      const todayTxt = b.todayCount
+        ? `${b.todayCount} fisk i dag (${b.todayKg} kg)`
+        : "Ingen rapportert fangst i dag";
+      const arts = (b.todayByArt || []).map((a) => `${a.ant} ${String(a.art).toLowerCase()} (${a.kg} kg)`).join(", ");
+      const last = b.lastCatch
+        ? `Siste rapporterte: ${fmtDate(b.lastCatch.date)} · ${b.lastCatch.kg} kg ${String(b.lastCatch.art || "").toLowerCase()}`
+        : "";
+      const list = (b.todayCatches || []).map((c) =>
+        `<li>${c.kg} kg ${escapeHtml(String(c.art || "").toLowerCase())} · ${escapeHtml(c.navn || "Anonym")} · ${escapeHtml(c.redskap || "")}</li>`
+      ).join("");
+      return `<section class="bors">
+        <strong>Laksebørsen · Svolværvannet</strong>
+        <p>${todayTxt}${arts ? " — " + arts : ""}</p>
+        <p class="hint">${last}</p>
+        ${list ? `<ul>${list}</ul>` : ""}
+        <p><a href="${b.url}" target="_blank" rel="noopener">Se alle fangster på inatur</a></p>
+      </section>`;
+    }
+
+    function neededDays(p) {
+      const set = new Set();
+      for (const s of p.slots || []) {
+        set.add(s.date);
+        set.add(addDays(s.date, -1));
+        set.add(addDays(s.date, -2));
+        set.add(addDays(s.date, -3));
+      }
+      return [...set].sort();
+    }
+
+    function addDays(isoDate, n) {
+      const d = new Date(isoDate + "T12:00:00Z");
+      d.setUTCDate(d.getUTCDate() + n);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function dayEditor(day) {
+      return `<div>
+        <strong>${day}</strong>
+        <label>Døgnmiddel temp (°C)</label><input data-ov="${day}|tempMean" type="number" step="0.1">
+        <label>Høyeste middelvind (m/s)</label><input data-ov="${day}|windMax" type="number" step="0.1">
+        <label>Høyeste trykk havnivå (hPa)</label><input data-ov="${day}|pressureMax" type="number" step="0.1">
+        <label>Nedbør mm (SN85470)</label><input data-ov="${day}|rain" type="number" step="0.1">
+      </div>`;
+    }
+
+    function fillKnown(daily) {
+      for (const [day, vals] of Object.entries(daily || {})) {
+        for (const key of ["tempMean", "windMax", "pressureMax", "rain"]) {
+          const el = document.querySelector(`[data-ov="${day}|${key}"]`);
+          if (el && vals[key] != null && el.value === "") el.value = vals[key];
+        }
+      }
+    }
+
+    function card(s) {
+      const id = s.id || s.label;
+      const chosen = huggBySlot[id] || s.bonuser?.hugg?.color || "hvit";
+      const merke = (s.merkelapper || []).map((m) =>
+        `<span class="pill ${m.startsWith("Rød") ? "rod" : "blaa"}">${escapeHtml(m)}</span>`
+      ).join(" ");
+      const missN = (s.missing || []).length;
+      const rows = [
+        ["Sesong", s.parts.sesong],
+        ["Vind", s.parts.vind],
+        ["Nedbør", s.parts.nedbor],
+        ["Temp", s.parts.temp],
+        ["Δ temp", s.parts.dtemp],
+        ["Vind i går", s.parts.vindIgar],
+        ["Front", s.parts.front],
+      ].map(([n, part]) =>
+        `<div class="bar-row"><span>${n}</span><span>${part.pts}</span>
+         <div class="track"><div class="fill" style="width:${Math.round(part.pts / part.max * 100)}%"></div></div></div>`
+      ).join("");
+      const dreining = s.bonuser?.dreining || {};
+      return `<article class="slot">
+        <div class="hint">${escapeHtml(s.label)}</div>
+        <div class="total">${s.total}</div>
+        <div>
+          <span class="pill">${escapeHtml(s.etikett.label)}</span>
+          ${merke}
+          ${missN ? `<span class="pill warn">${missN} felt mangler</span>` : ""}
+        </div>
+        <label style="margin-top:8px">Huggtabellen dette tidspunktet</label>
+        <select data-hugg="${escapeHtml(id)}">
+          <option value="hvit" ${chosen === "hvit" ? "selected" : ""}>Hvit dag</option>
+          <option value="blaa" ${chosen === "blaa" ? "selected" : ""}>Blå dag</option>
+          <option value="rod" ${chosen === "rod" ? "selected" : ""}>Rød dag</option>
+        </select>
+        <div class="hint">Grunn ${s.grunn} · dreining ${dreining.pts} (${dreining.bucket || "ukjent"})</div>
+        <div>${rows}</div>
+      </article>`;
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return "";
+      const [y, m, d] = iso.split("-");
+      return `${d}.${m}.${y}`;
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    load();
+  </script>
+</body>
+</html>
