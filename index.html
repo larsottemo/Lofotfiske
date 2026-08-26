@@ -27,6 +27,15 @@
     h1 { margin: 0 0 4px; font-size: 2rem; }
     h2 { margin: 0 0 8px; font-size: 1.1rem; }
     .lead, .hint { color: var(--muted); }
+        .brand { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+    img.logo {
+      width: 72px; height: 72px; flex: 0 0 72px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: transparent;
+    }
+    .brand .place { margin: 0; font-size: 0.95rem; }
+    h1 { margin: 0 0 2px; font-size: 1.55rem; line-height: 1.2; }
     .toolbar, .panel, .slot, .missing, .bors {
       background: var(--card);
       border: 1px solid var(--line);
@@ -95,8 +104,13 @@
 </head>
 <body>
   <main>
-    <h1>Fangstscore · Svolvær</h1>
-    <p class="lead">Vågan. Observasjoner fra SN85450 og nedbør fra SN85470, pluss Met.no-varsel.</p>
+        <div class="brand">
+      <img class="logo" src="logo.png" width="72" height="72" alt="Svolværvannets Fiskevenner">
+      <div>
+        <h1>Fiskevennenes fiskekalkulator</h1>
+        <p class="lead place">for Svolværvannet · Vågan</p>
+      </div>
+    </div>
 
     <div class="toolbar">
       <button id="go" type="button">Hent og beregn</button>
