@@ -140,6 +140,21 @@
       <p class="status" id="status"></p>
     </div>
 
+        </div>
+
+    <section class="missing">
+      <h2>Rapporter fangst</h2>
+      <p class="hint">Kortnummeret huskes i denne nettleseren. Vi kopierer det og åpner Scanatura.</p>
+      <div>
+        <label>Kortnummer</label>
+        <input id="kortnr" autocomplete="off">
+      </div>
+      <p style="margin-top:12px">
+        <button id="report" type="button">Rapporter fangst</button>
+        <span class="hint" id="reportHint"></span>
+      </p>
+    </section>
+
     <div id="bors"></div>
     <div id="warnings"></div>
     <div class="slots" id="slots"></div>
@@ -183,7 +198,27 @@
     const $ = (id) => document.getElementById(id);
     let payload = null;
     let overrides = {};
-    let huggBySlot = JSON.parse(localStorage.getItem("fangstscoreHugg") || "{}");
+        let huggBySlot = JSON.parse(localStorage.getItem("fangstscoreHugg") || "{}");
+
+    const kortEl = $("kortnr");
+    kortEl.value = localStorage.getItem("fv_kortnr") || "";
+    kortEl.oninput = () => localStorage.setItem("fv_kortnr", kortEl.value.trim());
+    $("report").onclick = async () => {
+      const nr = kortEl.value.trim();
+      localStorage.setItem("fv_kortnr", nr);
+      if (!nr) {
+        $("reportHint").textContent = "Fyll inn kortnummer først.";
+        kortEl.focus();
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(nr);
+        $("reportHint").textContent = "Kortnummer kopiert. Lim inn på Scanatura (Ctrl+V).";
+      } catch {
+        $("reportHint").textContent = "Åpner Scanatura. Kopier kortnummeret manuelt.";
+      }
+      window.open("https://scanatura.no/fangstreg/", "_blank", "noopener");
+    };
 
     $("api").value = localStorage.getItem("fangstscoreApi") || DEFAULT_API;
     $("go").onclick = load;
