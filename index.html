@@ -223,7 +223,11 @@
     $("api").value = localStorage.getItem("fangstscoreApi") || DEFAULT_API;
     $("go").onclick = load;
     $("recalc").onclick = load;
-    $("clear").onclick = () => { overrides = {}; load(); };
+        $("clear").onclick = () => {
+      overrides = {};
+      document.querySelectorAll("[data-ov]").forEach((el) => { el.value = ""; });
+      load();
+    };
     $("api").onchange = () => localStorage.setItem("fangstscoreApi", $("api").value.trim());
 
     function collectOverrides() {
