@@ -137,10 +137,11 @@
     <div class="toolbar">
       <button id="go" type="button">Hent og beregn</button>
       <a class="btn ghost" href="https://www.skittfiske.no/guider/fiske/huggtabellen" target="_blank" rel="noopener">Se huggtabell</a>
+      <label style="margin:0">Vanntemp nå (°C)
+        <input id="vanntemp" type="number" step="0.1" placeholder="fra måleren" style="width:130px;margin-top:4px">
+      </label>
       <p class="status" id="status"></p>
     </div>
-
-        </div>
 
     <section class="missing">
       <h2>Rapporter fangst</h2>
@@ -198,32 +199,35 @@
     const $ = (id) => document.getElementById(id);
     let payload = null;
     let overrides = {};
-        let huggBySlot = JSON.parse(localStorage.getItem("fangstscoreHugg") || "{}");
-
-    const kortEl = $("kortnr");
-    kortEl.value = localStorage.getItem("fv_kortnr") || "";
-    kortEl.oninput = () => localStorage.setItem("fv_kortnr", kortEl.value.trim());
-    $("report").onclick = async () => {
-      const nr = kortEl.value.trim();
-      localStorage.setItem("fv_kortnr", nr);
-      if (!nr) {
-        $("reportHint").textContent = "Fyll inn kortnummer først.";
-        kortEl.focus();
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(nr);
-        $("reportHint").textContent = "Kortnummer kopiert. Lim inn på Scanatura (Ctrl+V).";
-      } catch {
-        $("reportHint").textContent = "Åpner Scanatura. Kopier kortnummeret manuelt.";
-      }
-      window.open("https://scanatura.no/fangstreg/", "_blank", "noopener");
-    };
+    let huggBySlot = JSON.parse(localStorage.getItem("fangstscoreHugg") || "{}");
 
     $("api").value = localStorage.getItem("fangstscoreApi") || DEFAULT_API;
+    $("vanntemp").value = localStorage.getItem("fv_vanntemp") || "";
+    $("vanntemp").oninput = () => localStorage.setItem("fv_vanntemp", $("vanntemp").value.trim());
+    const kortEl = $("kortnr");
+    if (kortEl) {
+      kortEl.value = localStorage.getItem("fv_kortnr") || "";
+      kortEl.oninput = () => localStorage.setItem("fv_kortnr", kortEl.value.trim());
+      $("report").onclick = async () => {
+        const nr = kortEl.value.trim();
+        localStorage.setItem("fv_kortnr", nr);
+        if (!nr) {
+          $("reportHint").textContent = "Fyll inn kortnummer først.";
+          kortEl.focus();
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(nr);
+          $("reportHint").textContent = "Kortnummer kopiert. Lim inn på Scanatura (Ctrl+V).";
+        } catch {
+          $("reportHint").textContent = "Åpner Scanatura. Kopier kortnummeret manuelt.";
+        }
+        window.open("https://scanatura.no/fangstreg/", "_blank", "noopener");
+      };
+    }
     $("go").onclick = load;
     $("recalc").onclick = load;
-        $("clear").onclick = () => {
+    $("clear").onclick = () => {
       overrides = {};
       document.querySelectorAll("[data-ov]").forEach((el) => { el.value = ""; });
       load();
@@ -243,10 +247,11 @@
       const api = $("api").value.trim() || DEFAULT_API;
       $("status").textContent = "Henter …";
       try {
+        const vanntemp = $("vanntemp").value === "" ? null : Number($("vanntemp").value);
         const res = await fetch(api, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ huggBySlot, overrides }),
+          body: JSON.stringify({ huggBySlot, overrides, vanntemp }),
         });
         if (!res.ok) throw new Error("HTTP " + res.status);
         payload = await res.json();
@@ -271,8 +276,7 @@
           load();
         };
       });
-      const days = neededDays(p);
-      $("missingFields").innerHTML = days.map(dayEditor).join("");
+      $("missingFields").innerHTML = neededDays(p).map(dayEditor).join("");
       fillKnown(p.daily);
     }
 
@@ -343,16 +347,16 @@
       ).join(" ");
       const missN = (s.missing || []).length;
       const rows = [
-        ["Sesong", s.parts.sesong],
+        ["Luft", s.parts.luft],
+        ["Δ luft 2d", s.parts.dluf],
+        ["Regn i går", s.parts.nedbor],
         ["Vind", s.parts.vind],
-        ["Nedbør", s.parts.nedbor],
-        ["Temp", s.parts.temp],
-        ["Δ temp", s.parts.dtemp],
-        ["Vind i går", s.parts.vindIgar],
-        ["Front", s.parts.front],
+        ["Δ trykk 3d", s.parts.trykk],
+        ["Vanntemp", s.parts.vann],
+        ["Dato", s.parts.dato],
       ].map(([n, part]) =>
-        `<div class="bar-row"><span>${n}</span><span>${part.pts}</span>
-         <div class="track"><div class="fill" style="width:${Math.round(part.pts / part.max * 100)}%"></div></div></div>`
+        `<div class="bar-row"><span>${n}</span><span>${part ? part.pts : "–"}</span>
+         <div class="track"><div class="fill" style="width:${part && part.max ? Math.round(part.pts / part.max * 100) : 0}%"></div></div></div>`
       ).join("");
       const dreining = s.bonuser?.dreining || {};
       return `<article class="slot">
@@ -369,7 +373,7 @@
           <option value="blaa" ${chosen === "blaa" ? "selected" : ""}>Blå dag</option>
           <option value="rod" ${chosen === "rod" ? "selected" : ""}>Rød dag</option>
         </select>
-        <div class="hint">Grunn ${s.grunn} · dreining ${dreining.pts} (${dreining.bucket || "ukjent"})</div>
+        <div class="hint">Grunn ${s.grunn} · dreining ${dreining.pts} (${dreining.bucket || "ukjent"})${s.vanntemp != null ? " · vann " + s.vanntemp + "°C" : ""}</div>
         <div>${rows}</div>
       </article>`;
     }
