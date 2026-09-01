@@ -177,21 +177,29 @@
   </main>
 
   <script>
-    const PAGE_PASS = "Fiskefusk";
     const gateEl = document.getElementById("gate");
     const gateForm = document.getElementById("gateForm");
-    if (sessionStorage.getItem("fv_ok") === "1") {
-      gateEl?.remove();
-    } else if (gateForm) {
+    function lockGate(msg) {
+      sessionStorage.removeItem("fv_pass");
+      sessionStorage.removeItem("fv_ok");
+      if (gateEl) gateEl.style.display = "grid";
+      if (msg) document.getElementById("gateErr").textContent = msg;
+    }
+    function unlockGate() {
+      if (gateEl) gateEl.style.display = "none";
+    }
+    if (sessionStorage.getItem("fv_pass")) unlockGate();
+    if (gateForm) {
       gateForm.addEventListener("submit", (e) => {
         e.preventDefault();
-        const val = document.getElementById("gatePass").value;
-        if (val === PAGE_PASS) {
-          sessionStorage.setItem("fv_ok", "1");
-          gateEl.remove();
-        } else {
-          document.getElementById("gateErr").textContent = "Feil kodeord";
+        const val = document.getElementById("gatePass").value.trim();
+        if (!val) {
+          document.getElementById("gateErr").textContent = "Skriv kodeord";
+          return;
         }
+        sessionStorage.setItem("fv_pass", val);
+        unlockGate();
+        load();
       });
     }
 
@@ -256,8 +264,17 @@
         const res = await fetch(api, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ huggBySlot, overrides, vanntemp }),
+          body: JSON.stringify({
+            huggBySlot,
+            overrides,
+            vanntemp,
+            pass: sessionStorage.getItem("fv_pass") || "",
+          }),
         });
+        if (res.status === 401) {
+          lockGate("Feil kodeord");
+          return;
+        }
         if (!res.ok) throw new Error("HTTP " + res.status);
         payload = await res.json();
         $("status").textContent = "Oppdatert " + new Date().toLocaleTimeString("nb-NO");
@@ -398,7 +415,7 @@
         .replaceAll(">", "&gt;");
     }
 
-    load();
+    if (sessionStorage.getItem("fv_pass")) load();
   </script>
 </body>
 </html>
