@@ -199,7 +199,8 @@
     const $ = (id) => document.getElementById(id);
     let payload = null;
     let overrides = {};
-    let huggBySlot =     if (!localStorage.getItem("fv_huggAuto")) {
+    let huggBySlot = JSON.parse(localStorage.getItem("fangstscoreHugg") || "{}");
+    if (!localStorage.getItem("fv_huggAuto")) {
       huggBySlot = {};
       localStorage.setItem("fangstscoreHugg", "{}");
       localStorage.setItem("fv_huggAuto", "1");
@@ -274,13 +275,9 @@
       $("bors").innerHTML = borsBox(p.laksebors);
       $("slots").innerHTML = (p.slots || []).map(card).join("");
       $("slots").querySelectorAll("[data-hugg]").forEach((sel) => {
-      sel.onchange = () => {
+        sel.onchange = () => {
           if (sel.value === "auto") delete huggBySlot[sel.dataset.hugg];
           else huggBySlot[sel.dataset.hugg] = sel.value;
-          localStorage.setItem("fangstscoreHugg", JSON.stringify(huggBySlot));
-          load();
-        };
-          huggBySlot[sel.dataset.hugg] = sel.value;
           localStorage.setItem("fangstscoreHugg", JSON.stringify(huggBySlot));
           load();
         };
