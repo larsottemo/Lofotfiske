@@ -199,7 +199,11 @@
     const $ = (id) => document.getElementById(id);
     let payload = null;
     let overrides = {};
-    let huggBySlot = JSON.parse(localStorage.getItem("fangstscoreHugg") || "{}");
+    let huggBySlot =     if (!localStorage.getItem("fv_huggAuto")) {
+      huggBySlot = {};
+      localStorage.setItem("fangstscoreHugg", "{}");
+      localStorage.setItem("fv_huggAuto", "1");
+    }
 
     $("api").value = localStorage.getItem("fangstscoreApi") || DEFAULT_API;
     $("vanntemp").value = localStorage.getItem("fv_vanntemp") || "";
@@ -270,7 +274,12 @@
       $("bors").innerHTML = borsBox(p.laksebors);
       $("slots").innerHTML = (p.slots || []).map(card).join("");
       $("slots").querySelectorAll("[data-hugg]").forEach((sel) => {
-        sel.onchange = () => {
+      sel.onchange = () => {
+          if (sel.value === "auto") delete huggBySlot[sel.dataset.hugg];
+          else huggBySlot[sel.dataset.hugg] = sel.value;
+          localStorage.setItem("fangstscoreHugg", JSON.stringify(huggBySlot));
+          load();
+        };
           huggBySlot[sel.dataset.hugg] = sel.value;
           localStorage.setItem("fangstscoreHugg", JSON.stringify(huggBySlot));
           load();
@@ -341,7 +350,7 @@
 
     function card(s) {
       const id = s.id || s.label;
-      const chosen = huggBySlot[id] || s.bonuser?.hugg?.color || "hvit";
+      const chosen = huggBySlot[id] || "auto";
       const merke = (s.merkelapper || []).map((m) =>
         `<span class="pill ${m.startsWith("Rød") ? "rod" : "blaa"}">${escapeHtml(m)}</span>`
       ).join(" ");
@@ -369,6 +378,7 @@
         </div>
         <label style="margin-top:8px">Huggtabellen dette tidspunktet</label>
         <select data-hugg="${escapeHtml(id)}">
+          <option value="auto" ${chosen === "auto" ? "selected" : ""}>Auto (huggtabellen)</option>
           <option value="hvit" ${chosen === "hvit" ? "selected" : ""}>Hvit dag</option>
           <option value="blaa" ${chosen === "blaa" ? "selected" : ""}>Blå dag</option>
           <option value="rod" ${chosen === "rod" ? "selected" : ""}>Rød dag</option>
